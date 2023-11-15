@@ -40,7 +40,7 @@ def crawl_tweet(
         print(f"Crawling with keyword '{keyword}'")
 
         tweets = app.search(f"{keyword} min_faves:{min_faves} min_retweets:{min_retweets}", pages = pages, wait_time = wait_time)
-        convert_to_json(tweets,f"{keyword}.json")
+        convert_and_write_to_json(tweets,f"{keyword}.json")
         for tweet in tweets:
             print(tweet.__dict__)
 
