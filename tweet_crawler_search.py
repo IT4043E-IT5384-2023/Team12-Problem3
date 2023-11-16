@@ -15,7 +15,10 @@ def read_yaml(path):
         print("Read YAML config successfully")
     return config
 
-def convert_and_write_to_json(data, json_filename):
+
+# Specify the JSON filename
+json_filename = 'output.json'
+def convert_to_json(data, json_filename=json_filename):
     # Open the JSON file in write mode
     data = [i for n, i in enumerate(data) if i not in data[:n]]
     with open(os.path.join("data", json_filename), 'w', encoding='utf-8') as json_file:
@@ -28,7 +31,7 @@ def convert_and_write_to_json(data, json_filename):
             json_file.write('\n')
         json_file.write(']')
 
-def crawl_tweet(
+def crawl_tweet_search(
     app,
     keywords: Union[str, List[str]],
     min_faves: int = 100,
@@ -39,23 +42,23 @@ def crawl_tweet(
     for keyword in keywords:
         print(f"Crawling with keyword '{keyword}'")
 
-        tweets = app.search(f"{keyword} min_faves:{min_faves} min_retweets:{min_retweets}", pages = pages, wait_time = wait_time)
-        convert_and_write_to_json(tweets,f"{keyword}.json")
-        for tweet in tweets:
+        all_tweets = app.search(f"{keyword} min_faves:{min_faves} min_retweets:{min_retweets}", pages = pages, wait_time = wait_time)
+        convert_to_json(all_tweets,f"{keyword}.json")
+        for tweet in all_tweets:
             print(tweet.__dict__)
-
+            
 if __name__ == "__main__":
-    # Read config file
-    CONFIG_PATH = os.path.join(os. getcwd(), "config.yaml")
-    config = read_yaml(path=CONFIG_PATH)
-
     # Login Twitter account
     app = Twitter("session")
     with open("account.key", "r") as f:
         username, password, key = f.read().split()
     app.sign_in(username, password, extra=key)
 
-    crawl_tweet(
+    # Read config file
+    CONFIG_PATH = os.path.join(os. getcwd(), "config_keywords.yaml")
+    config = read_yaml(path=CONFIG_PATH)
+
+    crawl_tweet_search(
         app = app,
         keywords=config['keywords'],
         min_faves=config['min_faves'],
