@@ -1,8 +1,16 @@
 import json
 import os
-
+from google.cloud import storage
 folder_path = 'data'
 
+def upload_file_to_google_cloud_storage(bucket_name, file_name, local_csv_path):
+    client = storage.Client.from_service_account_json('service-account\key.json')
+    bucket = client.get_bucket(bucket_name)
+
+    blob = bucket.blob(file_name)
+    blob.upload_from_filename(local_csv_path, content_type='application/json')
+
+    print(f'File {local_csv_path} uploaded to {file_name} in {bucket_name} bucket.')
 # Get the list of files in the folder
 files = os.listdir(folder_path)
 data = []
@@ -32,3 +40,6 @@ print(len(result))
 #write result
 with open('output.json', 'w', encoding='utf-8') as file:
     json.dump(result, file, indent=2)
+
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output_notclean.json', 'output_notclean.json')
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output.json', 'output.json')

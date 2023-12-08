@@ -1,6 +1,16 @@
 import json
 import pandas as pd
 from functools import reduce
+from google.cloud import storage
+
+def upload_file_to_google_cloud_storage(bucket_name, file_name, local_csv_path):
+    client = storage.Client.from_service_account_json('service-account\key.json')
+    bucket = client.get_bucket(bucket_name)
+
+    blob = bucket.blob(file_name)
+    blob.upload_from_filename(local_csv_path, content_type='application/octet-stream')
+
+    print(f'File {local_csv_path} uploaded to {file_name} in {bucket_name} bucket.')
 
 with open("extract-field\tweet.txt", "r") as post:
     post_tag = [data.strip().split(" ") for data in post]
@@ -44,10 +54,17 @@ for post in data:
     for ptag in post_tag[1:]:
         post_data[ptag[-1]].append(reduce(lambda d, k: d[k], ptag, post))
 
-#convert to csv file
-user_df = pd.DataFrame(user_data)
-user_df.to_csv("user.csv", index=False)
+# detect bot
+df_user = pd.DataFrame(user_data)
+df_post = pd.DataFrame(post_data)
 
-post_df = pd.DataFrame(post_data)
-post_df.to_csv("post.csv", index=False)
+df_user['verified_type'] = df_user['verified_type'].fillna(value='none')
+df_post['created_at'] = pd.to_datetime(df_post['created_at'], format='%a %b %d %H:%M:%S +0000 %Y')
+df_post['created_at'] = (pd.to_datetime(df_post['created_at']).view('int64') // 10**9).astype('int64')
+df_user['created_at'] = (pd.to_datetime(df_user['created_at']).view('int64') // 10**9).astype('int64')
+# convert to parquet file
+df_user.to_parquet('user_data.parquet', index=False)
+df_post.to_parquet('post_data.parquet', index=False)
 
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/user_data.parquet', 'user_data.parquet')
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/post_data.parquet', 'post_data.parquet')
