@@ -2,6 +2,7 @@
 *.key
 *.tw_session
 data/
+service-account/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
