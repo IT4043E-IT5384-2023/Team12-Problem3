@@ -1,6 +1,6 @@
 from typing import List, Union
 from tweety import Twitter
-import pandas as pd
+from google.cloud import storage
 import os
 import json
 import sys
@@ -9,6 +9,14 @@ parent = os.path.dirname(current)
 sys.path.append(parent)
 import yaml
 
+def upload_file_to_google_cloud_storage(bucket_name, file_name, local_path):
+    client = storage.Client.from_service_account_json('service-account\key.json')
+    bucket = client.get_bucket(bucket_name)
+
+    blob = bucket.blob(file_name)
+    blob.upload_from_filename(local_path, content_type='application/json')
+
+    print(f'File {local_path} uploaded to {file_name} in {bucket_name} bucket.')
 def read_yaml(path):
     with open(path, "r") as yamlfile:
         config = yaml.load(yamlfile, Loader=yaml.FullLoader)
@@ -41,9 +49,8 @@ def crawl_tweet_user(
     for idx, user in enumerate(users):
         print(f"Crawling tweets of @'{user}'")
         all_tweets = app.get_tweets(username = f"{user}", pages = pages, wait_time = wait_time)
-        convert_to_json(all_tweets,f"{username[idx]}.json")
-        for tweet in all_tweets:
-            print(tweet.__dict__)
+        convert_to_json(all_tweets, f"{username[idx]}.json")
+        upload_file_to_google_cloud_storage('it4043e-it5384', f"it4043e/it4043e_group12_problem3/raw-data/data/{username[idx]}.json", f"data/{username[idx]}.json")
 if __name__ == "__main__":
     # Login Twitter account
     app = Twitter("session")
