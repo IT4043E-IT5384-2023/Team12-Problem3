@@ -20,17 +20,27 @@ def read_yaml(path):
     return config
 
 KAFKA_URL = os.getenv("KAFKA_URL")
-KAFKA_TOPIC = os.getenv("KAFKA_ETHER_TOPIC")
+KAFKA_TOPIC = os.getenv("KAFKA_TOPIC")
 # Configure Kafka producer
-producer = KafkaProducer(bootstrap_servers=KAFKA_URL)
+producer = KafkaProducer(bootstrap_servers=KAFKA_URL, value_serializer=lambda K:json.dumps(K).encode('utf-8'))
 
 # Specify the JSON filename
 json_filename = 'output.json'
-
-# Function to send tweet to Kafka
-def send_to_kafka(tweet):
-    tweet_json = json.dumps(tweet, ensure_ascii=False, indent=4, default=str)
-    producer.send(KAFKA_TOPIC, value=tweet_json.encode('utf-8'))
+def convert_to_json(data, json_filename=json_filename):
+    # Open the JSON file in write mode
+    if data is not None:
+        data = [i for n, i in enumerate(data) if i not in data[:n]]
+        with open(os.path.join("data", json_filename), 'w', encoding='utf-8') as json_file:
+            # Write the data to the JSON file
+            json_file.write('[')
+            for idx, tweet in enumerate(data):
+                json.dump(tweet, json_file, ensure_ascii=False, indent=4, default=str)
+                if idx < len(data) - 1:
+                    json_file.write(',')  # Add a comma between objects
+                json_file.write('\n')
+            json_file.write(']')
+    else:
+        print("Error: 'data' is None.")
 
 # Function to crawl tweets of users
 def crawl_tweet_user(app,
@@ -41,15 +51,14 @@ def crawl_tweet_user(app,
     for idx, user in enumerate(users):
         print(f"Crawling tweets of '@{user}'")
         all_tweets = app.get_tweets(username=f"{user}", pages=pages, wait_time=wait_time)
-        for tweet in all_tweets:
-            send_to_kafka(tweet)
-            print(tweet.__dict__)
-
-# Function to convert data to JSON and send to Kafka
-def convert_to_json(data):
-    for tweet in data:
-        send_to_kafka(tweet)
-
+        if all_tweets is not None:
+            convert_to_json(all_tweets, f"{username[idx]}.json")
+            with open(os.path.join("data", f"{username[idx]}.json")) as f:
+                data = json.load(f)
+                # Convert the JSON data to a string
+                # json_string = json.dumps(data)
+                # value_bytes = json_string.encode('utf-8')
+                producer.send(KAFKA_TOPIC, value=data)
 # Main script
 if __name__ == "__main__":
     # Login Twitter account

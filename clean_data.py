@@ -1,175 +1,70 @@
-from pyspark.sql import SparkSession
-from pyspark.sql import functions as F
-from pyspark.sql.functions import countDistinct, col, when
-from pyspark.sql.window import Window
+import json
+import pandas as pd
+from functools import reduce
+from google.cloud import storage
 
-#config the connector jar file
-spark = (SparkSession.builder.appName("SimpleSparkJob").master("spark://34.142.194.212:7077")
-            .config("spark.jars", "/opt/spark/jars/gcs-connector-latest-hadoop2.jar")
-            .config("spark.executor.memory", "2G")  #excutor excute only 2G
-            .config("spark.driver.memory","4G") 
-            .config("spark.executor.cores","3") #Cluster use only 3 cores to excute
-            .config("spark.python.worker.memory","1G") # each worker use 1G to excute
-            .config("spark.driver.maxResultSize","3G") #Maximum size of result is 3G
-            .config("spark.kryoserializer.buffer.max","1024M")
-            .getOrCreate())
+def upload_file_to_google_cloud_storage(bucket_name, file_name, local_csv_path):
+    client = storage.Client.from_service_account_json('service-account\key.json')
+    bucket = client.get_bucket(bucket_name)
 
-#config the credential to identify the google cloud hadoop file 
-spark.conf.set("google.cloud.auth.service.account.json.keyfile","/opt/spark/lucky-wall-393304-2a6a3df38253.json")
-spark._jsc.hadoopConfiguration().set('fs.gs.impl', 'com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem')
-spark._jsc.hadoopConfiguration().set('fs.gs.auth.service.account.enable', 'true')
+    blob = bucket.blob(file_name)
+    blob.upload_from_filename(local_csv_path, content_type='application/octet-stream')
 
-## Connect to the file in Google Bucket with Spark
+    print(f'File {local_csv_path} uploaded to {file_name} in {bucket_name} bucket.')
 
-user_path = f"gs://it4043e-it5384/it4043e/it4043e_group12_problem3/raw-data/user_data.parquet"
-post_path = f"gs://it4043e-it5384/it4043e/it4043e_group12_problem3/raw-data/post_data.parquet"
+with open("extract-field\tweet.txt", "r") as post:
+    post_tag = [data.strip().split(" ") for data in post]
+    post_data = {key : [] for key in [sub[-1] for sub in post_tag] }
 
-df_user = spark.read.parquet(user_path)
-df_post = spark.read.parquet(post_path)
+with open("extract-field\user.txt", "r") as user:
+    user_tag = [data.strip().split(" ") for data in user]
+    user_data = {key : [] for key in [sub[-1] for sub in user_tag] }
 
-## Explore the Data
+file = open("output.json", 'r', encoding="utf-8")
+data = json.load(file)
+unique_user = set()
 
-print(df_user.show(5))
-# Get the number of rows
-num_rows_df_user = df_user.count()
-# Get the number of columns
-num_cols_df_user = len(df_user.columns)
-# Print the shape
-print("Shape of DataFrame: ({}, {})".format(num_rows_df_user, num_cols_df_user))
-print("Info about User :")
-# Print column names and their data types
-print("Column Names and Data Types:")
-for col_name, col_type in df_user.dtypes:
-    print("{}: {}".format(col_name, col_type))
-print("Number of unique User :")
-for col_name in df_user.columns:
-    unique_count = df_user.select(countDistinct(col(col_name))).collect()[0][0]
-    print("{}: {}".format(col_name, unique_count))
-num_duplicates_df_user = df_user.count() - df_user.dropDuplicates(df_user.columns).count()
-print("Number of Duplicated Rows: {}".format(num_duplicates_df_user))
-print("Number of Null Values for Each Column:")
-for col_name in df_user.columns:
-    null_count = df_user.filter(col(col_name).isNull()).count()
-    print("{}: {}".format(col_name, null_count))
+for post in data:
+    #check language: if english -> continue
+    if post["original_tweet"]["lang"] != "en":
+        continue
+    
+    #check user are in set or not
+    if post["author"]["original_user"]["screen_name"] not in unique_user:
+        unique_user.add(post["author"]["original_user"]["screen_name"])
 
-print(df_post.show(5))
-# Get the number of rows
-num_rows_df_post = df_post.count()
-# Get the number of columns
-num_cols_df_post = len(df_post.columns)
-# Print the shape
-print("Shape of DataFrame: ({}, {})".format(num_rows_df_post, num_cols_df_post))
-print("Info about Post :")
-# Print column names and their data types
-print("Column Names and Data Types:")
-for col_name, col_type in df_post.dtypes:
-    print("{}: {}".format(col_name, col_type))
-print("Number of unique Post :")
-for col_name in df_post.columns:
-    unique_count = df_post.select(countDistinct(col(col_name))).collect()[0][0]
-    print("{}: {}".format(col_name, unique_count))
-num_duplicates_df_post = df_post.count() - df_post.dropDuplicates(df_post.columns).count()
-print("Number of Duplicated Rows: {}".format(num_duplicates_df_post))
-print("Number of Null Values for Each Column:")
-for col_name in df_post.columns:
-    null_count = df_post.filter(col(col_name).isNull()).count()
-    print("{}: {}".format(col_name, null_count))
+        #check post has "verified_type": dont have-> None
+        if "verified_type" not in post['author']['original_user']:
+            user_data["verified_type"].append(None)
+        else:
+            user_data["verified_type"].append(post['author']['original_user']['verified_type'])
 
-# Handle Missing Values
+        for utag in user_tag[1:]:
+            user_data[utag[-1]].append(reduce(lambda d, k: d[k], utag, post))
+    
+    #get post data:
+    #first get all tag:
+    hashtagtext = ""
+    for idx, hashtag in enumerate(post['hashtags']):
+        if idx < len(post['hashtags']) - 1:
+            hashtagtext += hashtag["text"] + ", "
+        else:
+            hashtagtext += hashtag["text"]
+    post_data['hashtags'].append(hashtagtext)
+    for ptag in post_tag[1:]:
+        post_data[ptag[-1]].append(reduce(lambda d, k: d[k], ptag, post))
 
-# drop rows with any missing values
-df_user = df_user.dropna()
-df_post = df_post.dropna()
+# detect bot
+df_user = pd.DataFrame(user_data)
+df_post = pd.DataFrame(post_data)
 
-# Fill missing values in the specified column
-df_user = df_user.na.fill('none', ["verified_type"])
+df_user['verified_type'] = df_user['verified_type'].fillna(value='none')
+df_post['created_at'] = pd.to_datetime(df_post['created_at'], format='%a %b %d %H:%M:%S +0000 %Y')
+df_post['created_at'] = (pd.to_datetime(df_post['created_at']).view('int64') // 10**9).astype('int64')
+df_user['created_at'] = (pd.to_datetime(df_user['created_at']).view('int64') // 10**9).astype('int64')
+# convert to parquet file
+df_user.to_parquet('user_data.parquet', index=False)
+df_post.to_parquet('post_data.parquet', index=False)
 
-# drop duplicate rows
-df_user = df_user.dropDuplicates()
-df_post = df_post.dropDuplicates()
-
-# user drop column: fast_followers_count, is_translator, translator_type, want_retweets, protected
-df_user = df_user.drop('fast_followers_count')
-df_user = df_user.drop('is_translator')
-df_user = df_user.drop('translator_type')
-df_user = df_user.drop('want_retweets')
-df_user = df_user.drop('protected')
-# post drop column: lang
-df_post = df_post.drop('lang')
-
-# Sorting df_post by 'screen_name' and 'created_at'
-window_spec = Window.partitionBy("screen_name").orderBy("created_at")
-df_post = df_post.withColumn("time_diff", F.col("created_at").cast("long") - F.lag("created_at").over(window_spec))
-average_time_diff = df_post.groupby('screen_name').agg(F.avg('time_diff').alias('average_time_diff'))
-# Joining df_post with average_time_diff
-df_post = df_post.join(average_time_diff, on='screen_name', how='left')
-
-# Convert time_diff and average_time_diff to seconds
-df_post = df_post.withColumn("time_diff_seconds", F.col("time_diff").cast("double"))
-df_post = df_post.withColumn("average_time_diff_seconds", F.col("average_time_diff").cast("double"))
-
-# Calculate absolute time difference in seconds and compare with the interval
-df_post = df_post.withColumn("time_bot", (F.abs(F.col("time_diff_seconds") - F.col("average_time_diff_seconds")) < (5 * 60)).cast("int"))
-# Grouping and aggregating for time_bot
-time_bot_count = df_post.groupby('screen_name').agg(F.sum('time_bot').alias('time_bot_count'))
-
-# Joining df_user with time_bot_count
-df_user = df_user.join(time_bot_count, on='screen_name', how='left')
-# Handling views column
-df_post = df_post.withColumn("views", F.when(F.col("views") == "Unavailable", 0).otherwise(F.col("views").cast("int")))
-
-# Creating views/like column
-df_post = df_post.withColumn("views/like", F.when(F.col("favorite_count") != 0, F.col("views") / F.col("favorite_count")).otherwise(0))
-
-# Filtering rows and creating views_score column
-filtered_rows = (F.col("views/like").cast("float") > 50) & (F.col("views").cast("float") > 7000)
-df_post = df_post.withColumn("views_score", F.when(filtered_rows, 1).otherwise(0))
-
-# Grouping and aggregating for views_score
-v_count = df_post.groupby('screen_name').agg(F.sum('views_score').alias('views_score'))
-
-# Joining df_user with v_count
-df_user = df_user.join(v_count, on='screen_name', how='left')
-
-# Creating following/follower column
-df_user = df_user.withColumn("following/follower", F.when(F.col("followers_count") != 0, F.col("friends_count") / F.col("followers_count")).otherwise(0))
-
-# Creating friend_score column
-filtered_rows = (F.col("following/follower").cast("float") > 1) & (F.col("friends_count").cast("int") > 500)
-df_user = df_user.withColumn("friend_score", F.when(filtered_rows, 1).otherwise(0))
-
-# Creating bot_score column
-df_user = df_user.withColumn("bot_score", F.col("friend_score") + F.col("views_score") + F.col("time_bot_count"))
-
-# Data Transformation
-# convert 'timestamp' column to timestamp
-df_post = df_post.withColumn('created_at', F.from_unixtime('created_at').cast('timestamp'))
-df_user = df_user.withColumn('created_at', F.from_unixtime('created_at').cast('timestamp'))
-
-# Summary statistics
-summary_stats = df_user.summary()
-
-# Get the 75th percentile value for 'bot_score'
-percentile_75 = float(summary_stats.filter("summary = '75%'").select("bot_score").collect()[0]['bot_score'])
-
-# Define conditions for updating 'verified_type'
-condition1 = (col("verified_type") == "none") & (col("bot_score") >= percentile_75)
-condition2 = (col("verified_type") == "none") & (col("bot_score") < percentile_75) & (col("verified") == False)
-condition3 = (col("verified_type") == "none") & (col("bot_score") < percentile_75) & (col("verified") == True)
-
-df_user = df_user.withColumn(
-    "verified_type",
-    when(condition1, "bot")
-    .when(condition2, "default_user")
-    .when(condition3, "KOL")
-    .otherwise(col("verified_type"))
-)
-
-## Connect to the file in Google Bucket with Spark
-user_transform_path = f"gs://it4043e-it5384/it4043e/it4043e_group12_problem3/transformed-data/user_data_transform"
-post_transform_path = f"gs://it4043e-it5384/it4043e/it4043e_group12_problem3/transformed-data/post_data_transform"
-
-df_user.write.parquet(user_transform_path)
-df_post.write.parquet(post_transform_path)
-
-spark.stop()
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/user_data.parquet', 'user_data.parquet')
+upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/post_data.parquet', 'post_data.parquet')
