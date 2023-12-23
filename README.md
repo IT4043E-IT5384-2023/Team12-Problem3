@@ -11,26 +11,26 @@ pip install -r requirement.txt
 2. **Crawled data**
 - Changed the keyword or user to crawling in config_keywords.yaml or config_users.yaml file.
 - Create a folder **data** to store the data
-- Running the code in tweet_crawler_search.py or tweet_crawler_user.py to start crawling
+- Running the code in tweet-crawler\tweet_crawler_search.py or tweet-crawler\tweet_crawler_user.py to start crawling
 ```
-python tweet_crawler_search.py || python tweet_crawler_user.py
+python tweet-crawler\tweet_crawler_search.py || python tweet-crawler\tweet_crawler_user.py
 ```
 - Running the code in tweet_crawler_search.py or tweet_crawler_user.py to start crawling
 3. **Data Preprocessing**
-- Running the code in check_duplicate.py to remove the duplicate records
+- Running the code in data-preprocessing\check_duplicate.py to remove the duplicate records
 - Remember to edit the folder data path to exactly
 ```
-python check_duplicate.py
+python data-preprocessing\check_duplicate.py
 ```
-- Running the code in clean_data.py to keep only potentially relevant fields for each entity
+- Running the code in data-preprocessing\clean_data.py to keep only potentially relevant fields for each entity
 - Remember to edit the file data path to exactly
 ```
-python clean_data.py
+python data-preprocessing\clean_data.py
 ```
-- Open the JupyterHub environment to run preprocessing_data.py using Spark to process the data before evaluation.
+- Open the JupyterHub environment to run data-preprocessing\preprocessing_data.py using Spark to process the data before evaluation.
 - Remember to edit the file data path to exactly
 ```
-python preprocessing_data.py
+python data-preprocessing\preprocessing_data.py
 ```
 4. **Data Analysis**
 - Continue in the JupyterHub environment
@@ -49,7 +49,7 @@ python model_evaluation.py
 ```
 
 ## Data Structures
-Please visit [Data documentation – Group 12.docx]
+Please visit Data documentation – Group 12.docx
 
 ## Report
 Please visit our [Google Driver folder](https://drive.google.com/drive/folders/1YJIYe9-Jf7nU25gB8Ifnw5GW-s94L0EY) which contains all of our documents, presentation slides, video demonstration for this project.
