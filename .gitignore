@@ -2,7 +2,19 @@
 *.key
 *.tw_session
 data/
+data-storage/
 service-account/
+airflow.cfg
+airflow.db
+airflow-webserver.pid
+webserver_config.py
+logs
+standalone_admin_password.txt
+.DS_Store
+__pycache__/
+.env
+.venv
+.airflowctl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

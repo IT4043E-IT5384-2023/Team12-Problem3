@@ -1,0 +1,9 @@
+tweety-ns
+pyyaml
+google.cloud.storage
+pandas
+numpy
+pyarrow
+fastparquet
+pyspark
+elasticsearch

@@ -55,7 +55,7 @@ if __name__ == "__main__":
     app.sign_in(username, password, extra=key)
 
     # Read config file
-    CONFIG_PATH = os.path.join(os. getcwd(), "config-crawler\config_keywords.yaml")
+    CONFIG_PATH = os.path.join(os. getcwd(), "jobs/config-crawler/config_keywords.yaml")
     config = read_yaml(path=CONFIG_PATH)
 
     crawl_tweet_search(

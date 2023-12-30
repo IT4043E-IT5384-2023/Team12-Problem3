@@ -23,7 +23,7 @@ print(len(data))
 unique_values = set()
 result = []
 
-with open('output_notclean.json', 'w', encoding='utf-8') as file:
+with open('data/output_notclean.json', 'w', encoding='utf-8') as file:
     json.dump(data, file, indent=2)
 
 for item in data:
@@ -37,9 +37,10 @@ for item in data:
         result.append(item)
 print(len(result))
 
-#write result
-with open('output.json', 'w', encoding='utf-8') as file:
+# write result
+with open('data/output.json', 'w', encoding='utf-8') as file:
     json.dump(result, file, indent=2)
 
-upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output_notclean.json', 'output_notclean.json')
-upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output.json', 'output.json')
+# upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output_notclean.json', 'output_notclean.json')
+# upload_file_to_google_cloud_storage('it4043e-it5384', 'it4043e/it4043e_group12_problem3/raw-data/output.json', 'output.json')
+print("Check duplicate complete!")
