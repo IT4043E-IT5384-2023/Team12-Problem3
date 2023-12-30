@@ -10,7 +10,7 @@ sys.path.append(parent)
 import yaml
 
 def upload_file_to_google_cloud_storage(bucket_name, file_name, local_path):
-    client = storage.Client.from_service_account_json('service-account\key.json')
+    client = storage.Client.from_service_account_json('service-account/key.json')
     bucket = client.get_bucket(bucket_name)
 
     blob = bucket.blob(file_name)
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     app.sign_in(username, password, extra=key)
 
     # Read config file
-    CONFIG_PATH = os.path.join(os. getcwd(), "config-crawler\config_users.yaml")
+    CONFIG_PATH = os.path.join(os. getcwd(), "jobs/config-crawler/config_users.yaml")
     config = read_yaml(path=CONFIG_PATH)
 
     crawl_tweet_user(app = app,
@@ -68,3 +68,4 @@ if __name__ == "__main__":
         pages=config['pages'],
         wait_time=config['wait_time']
     )
+    print("Crawled complete!")

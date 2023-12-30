@@ -1,2 +1,0 @@
-tweety-ns
-pyyaml
